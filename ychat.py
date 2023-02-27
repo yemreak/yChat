@@ -1,5 +1,6 @@
 from revChatGPT.V1 import AsyncChatbot
 from settings import settings
+from traceback import format_exc
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -11,11 +12,13 @@ from telegram.ext import (
 
 
 class yChat:
-    __slots__ = "chatbot"
+    __slots__ = ("chatbot", "is_bot_in_use")
 
     chatbot: AsyncChatbot
+    is_bot_in_use: bool
 
     def __init__(self):
+        self.is_bot_in_use = False
         if settings.chatGPT.access_token:
             self.chatbot = AsyncChatbot(
                 config={
@@ -46,6 +49,16 @@ class yChat:
     async def __response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         assert update.effective_chat and update.message
         chat_id = update.effective_chat.id
+
+        if self.is_bot_in_use:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=settings.telegram.processing_message
+                + f"({settings.telegram.timeout}s)",
+            )
+            return
+
+        self.is_bot_in_use = True
         message = await context.bot.send_message(
             chat_id=chat_id,
             text=settings.telegram.processing_message
@@ -82,8 +95,9 @@ class yChat:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=message.id,
-                text=settings.telegram.error_message,
+                text=settings.telegram.error_message + format_exc()[-100:],
             )
+        self.is_bot_in_use = False
 
     async def __new(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         assert update.effective_chat

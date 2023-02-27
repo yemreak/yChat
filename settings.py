@@ -21,6 +21,7 @@ class Settings:
         clear_message: str = "🗑️ Conversation cleared"
         processing_message: str = "⌛️ Processing your request"
         timeout_message: str = "⏰ Request timed out"
+        in_use_message: str = "🚫 Bot is in use, try again later"
 
     @yaml_object(yaml)
     @dataclass
