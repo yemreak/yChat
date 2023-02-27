@@ -1,5 +1,6 @@
 from revChatGPT.V1 import AsyncChatbot
 from settings import settings
+from httpx import ReadTimeout
 from traceback import format_exc
 from telegram import Update
 from telegram.ext import (
@@ -68,9 +69,7 @@ class yChat:
         sent_text = prev_text = ""
         try:
             async for data in self.chatbot.ask(
-                update.message.text,
-                conversation_id=settings.telegram.conv_id,
-                timeout=settings.telegram.timeout,
+                update.message.text, timeout=settings.telegram.timeout
             ):
                 text = data["message"]
                 if (
@@ -87,27 +86,15 @@ class yChat:
                     chat_id=chat_id, message_id=message.id, text=prev_text
                 )
                 sent_text = prev_text
-
-            assert self.chatbot.conversation_id
-            settings.telegram.conv_id = self.chatbot.conversation_id
-            settings.save()
-        except Exception:
+        except Exception as e:
+            if isinstance(e, ReadTimeout):
+                text = settings.telegram.timeout_message
+            else:
+                text = settings.telegram.error_message + format_exc()[-100:]
             await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message.id,
-                text=settings.telegram.error_message + format_exc()[-100:],
+                chat_id=chat_id, message_id=message.id, text=text
             )
         self.is_bot_in_use = False
-
-    async def __new(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        assert update.effective_chat
-        if settings.telegram.conv_id:
-            await self.chatbot.delete_conversation(settings.telegram.conv_id)
-            settings.telegram.conv_id = None
-            settings.save()
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=settings.telegram.clear_message
-        )
 
     async def __start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         assert update.effective_chat
@@ -122,9 +109,7 @@ class yChat:
         message_handler = MessageHandler(
             filters.TEXT & (~filters.COMMAND), self.__response
         )
-        clear_handler = CommandHandler("new", self.__new)
         application.add_handler(start_handler)
-        application.add_handler(clear_handler)
         application.add_handler(message_handler)
 
         application.run_polling()

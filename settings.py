@@ -14,7 +14,6 @@ class Settings:
     @dataclass
     class Telegram:
         access_token: str = ""
-        conv_id: str | None = None
         timeout: int = 60
         error_message: str = "❌ An error occurred while processing your request"
         welcome_message: str = "👋 Hello, I'm a chatbot. Ask me anything!"
