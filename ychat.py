@@ -21,6 +21,7 @@ class yChat:
             self.chatbot = Chatbot(
                 config={
                     "access_token": settings.chatGPT.access_token,
+                    "paid": settings.chatGPT.paid,
                 }
             )
         elif settings.chatGPT.email and settings.chatGPT.password:
@@ -28,12 +29,14 @@ class yChat:
                 config={
                     "email": settings.chatGPT.email,
                     "password": settings.chatGPT.password,
+                    "paid": settings.chatGPT.paid,
                 }
             )
         elif settings.chatGPT.session_token:
             self.chatbot = Chatbot(
                 config={
                     "session_token": settings.chatGPT.session_token,
+                    "paid": settings.chatGPT.paid,
                 }
             )
         else:
@@ -83,9 +86,10 @@ class yChat:
 
     async def __new(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         assert update.effective_chat
-        conv_id = settings.telegram.conv_id_by_chat_id.pop(update.effective_chat.id)
-        settings.save()
-        self.chatbot.delete_conversation(conv_id)
+        if update.effective_chat.id in settings.telegram.conv_id_by_chat_id:
+            conv_id = settings.telegram.conv_id_by_chat_id.pop(update.effective_chat.id)
+            settings.save()
+            self.chatbot.delete_conversation(conv_id)
         await context.bot.send_message(
             chat_id=update.effective_chat.id, text=settings.telegram.clear_message
         )

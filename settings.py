@@ -26,6 +26,7 @@ class Settings:
         email: str | None = None
         password: str | None = None
         session_token: str | None = None
+        paid: bool = False
 
     telegram: Telegram = field(default_factory=Telegram)
     chatGPT: ChatGPT = field(default_factory=ChatGPT)
