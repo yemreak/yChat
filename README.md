@@ -2,7 +2,7 @@
 
 Simplest telegram client that use ChatGPT ([revChatGPT](https://github.com/acheong08/ChatGPT))
 
-![image](https://i.imgur.com/L95j5fU.png)
+![image](https://i.imgur.com/pYkcniq.png)
 
 1. Fill settings.yaml file to use it
     1. Telegram token
