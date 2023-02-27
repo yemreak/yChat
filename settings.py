@@ -15,6 +15,7 @@ class Settings:
     class Telegram:
         access_token: str = ""
         timeout: int = 60
+        conv_id_by_chat_id: dict[int, int] = field(default_factory=dict)
         error_message: str = "❌ An error occurred while processing your request"
         welcome_message: str = "👋 Hello, I'm a chatbot. Ask me anything!"
         clear_message: str = "🗑️ Conversation cleared"

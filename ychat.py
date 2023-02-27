@@ -69,7 +69,9 @@ class yChat:
         sent_text = prev_text = ""
         try:
             async for data in self.chatbot.ask(
-                update.message.text, timeout=settings.telegram.timeout
+                update.message.text,
+                timeout=settings.telegram.timeout,
+                conversation_id=settings.telegram.conv_id_by_chat_id.get(chat_id),
             ):
                 text = data["message"]
                 if (
@@ -86,6 +88,8 @@ class yChat:
                     chat_id=chat_id, message_id=message.id, text=prev_text
                 )
                 sent_text = prev_text
+            settings.telegram.conv_id_by_chat_id[chat_id] = self.chatbot.conversation_id
+            settings.save()
         except Exception as e:
             if isinstance(e, ReadTimeout):
                 text = settings.telegram.timeout_message
