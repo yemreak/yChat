@@ -14,10 +14,13 @@ class Settings:
     @dataclass
     class Telegram:
         access_token: str = ""
-        conv_id_by_chat_id: dict[int, str] = field(default_factory=dict)
+        conv_id: str | None = None
+        timeout: int = 60
         error_message: str = "❌ An error occurred while processing your request"
         welcome_message: str = "👋 Hello, I'm a chatbot. Ask me anything!"
         clear_message: str = "🗑️ Conversation cleared"
+        processing_message: str = "⌛️ Processing your request"
+        timeout_message: str = "⏰ Request timed out"
 
     @yaml_object(yaml)
     @dataclass

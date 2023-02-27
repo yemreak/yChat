@@ -1,6 +1,6 @@
-from revChatGPT.V1 import Chatbot
+from revChatGPT.V1 import AsyncChatbot
 from settings import settings
-from telegram import Update, Message
+from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -8,24 +8,23 @@ from telegram.ext import (
     filters,
     MessageHandler,
 )
-from traceback import format_exc
 
 
 class yChat:
     __slots__ = "chatbot"
 
-    chatbot: Chatbot
+    chatbot: AsyncChatbot
 
     def __init__(self):
         if settings.chatGPT.access_token:
-            self.chatbot = Chatbot(
+            self.chatbot = AsyncChatbot(
                 config={
                     "access_token": settings.chatGPT.access_token,
                     "paid": settings.chatGPT.paid,
                 }
             )
         elif settings.chatGPT.email and settings.chatGPT.password:
-            self.chatbot = Chatbot(
+            self.chatbot = AsyncChatbot(
                 config={
                     "email": settings.chatGPT.email,
                     "password": settings.chatGPT.password,
@@ -33,7 +32,7 @@ class yChat:
                 }
             )
         elif settings.chatGPT.session_token:
-            self.chatbot = Chatbot(
+            self.chatbot = AsyncChatbot(
                 config={
                     "session_token": settings.chatGPT.session_token,
                     "paid": settings.chatGPT.paid,
@@ -45,51 +44,53 @@ class yChat:
             )
 
     async def __response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        assert update.message and update.effective_chat
+        assert update.effective_chat and update.message
         chat_id = update.effective_chat.id
+        message = await context.bot.send_message(
+            chat_id=chat_id,
+            text=settings.telegram.processing_message
+            + f"({settings.telegram.timeout}s)",
+        )
 
-        prev_text = ""
-        sent_text = ""
-        message: None | Message = None
-
+        sent_text = prev_text = ""
         try:
-            for data in self.chatbot.ask(
+            async for data in self.chatbot.ask(
                 update.message.text,
-                conversation_id=settings.telegram.conv_id_by_chat_id.get(chat_id),
+                conversation_id=settings.telegram.conv_id,
+                timeout=settings.telegram.timeout,
             ):
                 text = data["message"]
-                if len(text.split()) - len(sent_text.split()) > 3:
-                    if message is None:
-                        message = await context.bot.send_message(
-                            chat_id=chat_id, text=text
-                        )
-                    elif prev_text != text.strip():
-                        await context.bot.edit_message_text(
-                            chat_id=chat_id, message_id=message.id, text=text
-                        )
+                if (
+                    len(text.split()) - len(sent_text.split()) > 3
+                    and prev_text != text.strip()
+                ):
+                    await context.bot.edit_message_text(
+                        chat_id=chat_id, message_id=message.id, text=text
+                    )
                     sent_text = text
                 prev_text = text
-            if sent_text != prev_text and message:
+            if sent_text != prev_text:
                 await context.bot.edit_message_text(
                     chat_id=chat_id, message_id=message.id, text=prev_text
                 )
                 sent_text = prev_text
 
             assert self.chatbot.conversation_id
-            settings.telegram.conv_id_by_chat_id[chat_id] = self.chatbot.conversation_id
+            settings.telegram.conv_id = self.chatbot.conversation_id
             settings.save()
         except Exception:
-            await context.bot.send_message(
+            await context.bot.edit_message_text(
                 chat_id=chat_id,
-                text=f"{settings.telegram.error_message}:\n\n" + format_exc(),
+                message_id=message.id,
+                text=settings.telegram.error_message,
             )
 
     async def __new(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         assert update.effective_chat
-        if update.effective_chat.id in settings.telegram.conv_id_by_chat_id:
-            conv_id = settings.telegram.conv_id_by_chat_id.pop(update.effective_chat.id)
+        if settings.telegram.conv_id:
+            await self.chatbot.delete_conversation(settings.telegram.conv_id)
+            settings.telegram.conv_id = None
             settings.save()
-            self.chatbot.delete_conversation(conv_id)
         await context.bot.send_message(
             chat_id=update.effective_chat.id, text=settings.telegram.clear_message
         )
