@@ -2,6 +2,8 @@
 
 Simplest telegram client that use ChatGPT ([revChatGPT](https://github.com/acheong08/ChatGPT))
 
+![image](https://i.imgur.com/L95j5fU.png)
+
 1. Fill settings.yaml file to use it
     1. Telegram token
     2. ChatGPT auth
