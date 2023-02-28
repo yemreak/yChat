@@ -47,72 +47,72 @@ class yChat:
                 "Need any of access_token, email, password or session_token to use revChatGPT"
             )
 
-    async def __response(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        assert update.effective_chat and update.message
-        chat_id = update.effective_chat.id
+    def start_telegram_server(self) -> None:
+        async def __start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            assert update.effective_chat
+            chat_id = update.effective_chat.id
+            message = settings.telegram.welcome_message
+            await context.bot.send_message(chat_id=chat_id, text=message)
 
-        if self.is_bot_in_use:
-            await context.bot.send_message(
+        async def __response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            assert update.effective_chat and update.message
+            chat_id = update.effective_chat.id
+
+            if self.is_bot_in_use:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=settings.telegram.processing_message
+                    + f"({settings.telegram.timeout}s)",
+                )
+                return
+
+            self.is_bot_in_use = True
+            message = await context.bot.send_message(
                 chat_id=chat_id,
                 text=settings.telegram.processing_message
                 + f"({settings.telegram.timeout}s)",
             )
-            return
 
-        self.is_bot_in_use = True
-        message = await context.bot.send_message(
-            chat_id=chat_id,
-            text=settings.telegram.processing_message
-            + f"({settings.telegram.timeout}s)",
-        )
-
-        sent_text = prev_text = ""
-        try:
-            async for data in self.chatbot.ask(
-                update.message.text,
-                timeout=settings.telegram.timeout,
-                conversation_id=settings.telegram.conv_id_by_chat_id.get(chat_id),
-            ):
-                text = data["message"]
-                if (
-                    len(text.split()) - len(sent_text.split()) > 3
-                    and prev_text != text.strip()
+            sent_text = prev_text = ""
+            try:
+                async for data in self.chatbot.ask(
+                    update.message.text,
+                    timeout=settings.telegram.timeout,
+                    conversation_id=settings.telegram.conv_id_by_chat_id.get(chat_id),
                 ):
+                    text = data["message"]
+                    if (
+                        len(text.split()) - len(sent_text.split()) > 3
+                        and prev_text != text.strip()
+                    ):
+                        await context.bot.edit_message_text(
+                            chat_id=chat_id, message_id=message.id, text=text
+                        )
+                        sent_text = text
+                    prev_text = text
+                if sent_text != prev_text:
                     await context.bot.edit_message_text(
-                        chat_id=chat_id, message_id=message.id, text=text
+                        chat_id=chat_id, message_id=message.id, text=prev_text
                     )
-                    sent_text = text
-                prev_text = text
-            if sent_text != prev_text:
+                    sent_text = prev_text
+                settings.telegram.conv_id_by_chat_id[
+                    chat_id
+                ] = self.chatbot.conversation_id
+                settings.save()
+            except Exception as e:
+                if isinstance(e, ReadTimeout):
+                    text = settings.telegram.timeout_message
+                else:
+                    text = settings.telegram.error_message + format_exc()[-100:]
                 await context.bot.edit_message_text(
-                    chat_id=chat_id, message_id=message.id, text=prev_text
+                    chat_id=chat_id, message_id=message.id, text=text
                 )
-                sent_text = prev_text
-            settings.telegram.conv_id_by_chat_id[chat_id] = self.chatbot.conversation_id
-            settings.save()
-        except Exception as e:
-            if isinstance(e, ReadTimeout):
-                text = settings.telegram.timeout_message
-            else:
-                text = settings.telegram.error_message + format_exc()[-100:]
-            await context.bot.edit_message_text(
-                chat_id=chat_id, message_id=message.id, text=text
-            )
-        self.is_bot_in_use = False
+            self.is_bot_in_use = False
 
-    async def __start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        assert update.effective_chat
-        chat_id = update.effective_chat.id
-        message = settings.telegram.welcome_message
-        await context.bot.send_message(chat_id=chat_id, text=message)
-
-    def start(self) -> None:
         # https://chat.openai.com/api/auth/session
         application = ApplicationBuilder().token(settings.telegram.access_token).build()
-        start_handler = CommandHandler("start", self.__start)
-        message_handler = MessageHandler(
-            filters.TEXT & (~filters.COMMAND), self.__response
-        )
+        start_handler = CommandHandler("start", __start)
+        message_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), __response)
         application.add_handler(start_handler)
         application.add_handler(message_handler)
 
