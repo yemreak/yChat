@@ -10,6 +10,8 @@ from telegram.ext import (
     filters,
     MessageHandler,
 )
+from flask import Flask, request
+from twilio.twiml.messaging_response import MessagingResponse
 
 
 class yChat:
@@ -46,6 +48,41 @@ class yChat:
             raise ValueError(
                 "Need any of access_token, email, password or session_token to use revChatGPT"
             )
+
+    def start_sms_server(self) -> None:
+        """
+        - https://stackoverflow.com/a/50082747/9770490
+        - https://youtu.be/cZeCz_QOoXw
+        """
+        app = Flask(__name__)
+
+        @app.route("/sms", methods=["GET", "POST"])
+        async def sms_reply():
+            # Use this data in your application logic
+            # from_number = request.form["From"]
+            # to_number = request.form["To"]
+            body = request.form["Body"]
+
+            # Start our TwiML response
+            resp = MessagingResponse()
+
+            try:
+                text = ""
+                async for data in self.chatbot.ask(
+                    body, timeout=settings.telegram.timeout
+                ):
+                    text = data["message"]
+                resp.message(text)
+            except Exception as e:
+                if isinstance(e, ReadTimeout):
+                    text = settings.telegram.timeout_message
+                else:
+                    text = settings.telegram.error_message + format_exc()[-100:]
+                resp.message(text)
+            print(str(resp))
+            return str(resp)
+
+        app.run(debug=False)
 
     def start_telegram_server(self) -> None:
         async def __start(update: Update, context: ContextTypes.DEFAULT_TYPE):
