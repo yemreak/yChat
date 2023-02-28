@@ -1,6 +1,6 @@
 # 💭 yChat
 
-Simplest telegram client that use ChatGPT ([revChatGPT](https://github.com/acheong08/ChatGPT))
+Simplest telegram & SMS client that use ChatGPT ([revChatGPT](https://github.com/acheong08/ChatGPT))
 
 ![image](https://i.imgur.com/pYkcniq.png)
 
