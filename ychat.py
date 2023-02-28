@@ -57,7 +57,7 @@ class yChat:
         app = Flask(__name__)
 
         @app.route("/sms", methods=["GET", "POST"])
-        async def sms_reply():
+        async def sms_reply():  # type: ignore
             # Use this data in your application logic
             # from_number = request.form["From"]
             # to_number = request.form["To"]
