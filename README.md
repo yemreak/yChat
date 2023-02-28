@@ -2,6 +2,14 @@
 
 Simplest telegram & SMS client that use ChatGPT ([revChatGPT](https://github.com/acheong08/ChatGPT))
 
+```python
+from ychat import yChat
+
+if __name__ == "__main__":
+    yChat().start_telegram_server()
+    # yChat().start_sms_server()
+```
+
 ![image](https://i.imgur.com/pYkcniq.png)
 
 1. Fill settings.yaml file to use it
